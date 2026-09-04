@@ -3,6 +3,7 @@ version 43
 __lua__
 -- main
 function _init()
+	-- poke(0x5f5c,-1) turn off autorepeat for btn 4
 end
 
 function _update()
@@ -26,7 +27,10 @@ player = {
     dir=2,    -- 0=left, 1=right, 2=up, 3=down
     sp = 1,
     speed = 2,
-    jmpfrc=5,
+	-- jump values --
+	onground=true,
+	jumping=false,
+    initaccel= -5,
     g=0.5,
     -- feet hitbox --
     hx=4,
@@ -40,8 +44,20 @@ player = {
      self.dy+=self.g
      if (btn(0)) self.dx=-self.speed self.dir=0 self.sp=1
      if (btn(1)) self.dx=self.speed self.dir=1 self.sp=1
-     if (btn(4)) self.dy=-self.jmpfrc self.dir=2 self.sp=1
+     if btnp(4) and self.onground then
+	 	self.dy=self.initaccel
+		self.onground=false
+		self.jumping=true
+	 else
+		self.jumping=false
+	 end
      move_and_collide(self)
+	 if cmap(self, self.x, self.y+1) then
+	 	self.onground=true
+		self.jumping=false
+	 else
+	 	self.onground=false
+	 end
     end,
     draw = function(self)
         spr(self.sp,self.x,self.y,2,2,self.dir==1,false)
