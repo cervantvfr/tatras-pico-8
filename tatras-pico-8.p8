@@ -14,7 +14,6 @@ function _init()
 		jumping=false
 	}
     camera()
-	-- poke(0x5f5c,-1) turn off autorepeat for btn 4
 end
 
 function _update()
