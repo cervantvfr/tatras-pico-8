@@ -12,7 +12,7 @@ end
 
 function _init()
 	lvl,tlvl=1,2
-	maplvl=split2d"384,512,0,512|384,512,576,640|376,384,0,128"
+	maplvl=split2d"384,512,0,512|0,512,576,640|376,384,0,128"
 	loadlvl()
 end
 
@@ -163,6 +163,7 @@ end
 function mapcam()
 	local cx=mid(mxmin, player.x-64, mxmax-128)
 	local cy=mymax-128
+	if (lvl==2) cx=mxmax-128 cy=mid(mymin, player.y-64, mymax-128)
 	camera(cx, cy)
 end
 __gfx__
