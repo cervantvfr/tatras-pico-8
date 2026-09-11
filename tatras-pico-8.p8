@@ -8,11 +8,48 @@ function loadlvl()
 	player.dx,player.dy,player.ax,player.ay=0,0,0,0
 	player.onground=true
 	camera()
+	scan_map()
+end
+
+function scan_map()
+	ens={}
+	for x=mxmin/8,mxmax/8 do
+		for y=mymin/8,mymax/8 do
+			parse_tile(mget(x,y),x,y)
+		end
+	end
+end
+
+function parse_tile(tle,x,y)
+	local _x,_y=x*8,y*8
+
+	if tle==10 then
+		local esp,ew,eh=unpack(enemyspr[1])
+		make_en(esp,_x,_y,ew,eh)
+		mset(x,y,0)
+	end
+end
+
+function make_en(esp,ex,ey,ew,eh)
+	add(ens,{
+		sp=esp,
+		sw=ew,sh=eh,
+		x=ex,y=ey,
+		dx=0,dy=0,ax=0,ay=0,
+		dir=-1,
+		spd=0.5,
+		g=0.5,
+		hx=0,hy=0,
+		hw=ew*8,hh=eh*8,
+		cm=true,cw=false,
+		on_upd=upd_enemy
+	})
 end
 
 function _init()
 	lvl,tlvl=1,2
 	maplvl=split2d"384,512,0,512|0,512,576,640|376,384,0,128"
+	enemyspr=split2d"6,4,2"
 	loadlvl()
 end
 
@@ -31,6 +68,9 @@ function _draw()
 	cls(12)
 	mapcam()
 	map()
+	for e in all(ens) do
+		spr(e.sp,e.x,e.y,e.sw,e.sh,e.dir==1)
+	end
 	player:draw()
 end
 -->8
@@ -96,6 +136,17 @@ player = {
         spr(self.sp,self.x,self.y,2,2,self.dir==1,false)
     end
 }
+-->8
+-- enemy --
+function upd_enemy(e)
+	e.dx=e.dir*e.spd
+	e.dy+=e.g
+	move_and_collide(e)
+	-- turn around at a wall or ledge--
+	if cmap(e,e.x+e.dir*8,e.y) or not cmap(e,e.x+e.dir*8,e.y+1) then
+		e.dir*=-1
+	end
+end
 -->8
 -- map --
 -- world bounds --
