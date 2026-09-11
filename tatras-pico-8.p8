@@ -166,7 +166,7 @@ function mapcam()
 	if (lvl==2) cx=mxmax-128 cy=mid(mymin, player.y-64, mymax-128)
 	camera(cx, cy)
 end
---> 8
+-->8
 -- credits
 --[[ 
     jaular			https://www.lexaloffle.com/bbs/?uid=72395
