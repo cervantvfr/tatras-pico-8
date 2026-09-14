@@ -2,220 +2,89 @@ pico-8 cartridge // http://www.pico-8.com
 version 43
 __lua__
 -- main
-function loadlvl()
+function _init()
+	-- btnp no repeat --
+	poke(0x5f00+92,255)
+
+	t=0
+
+	-- levels --
+	lvl,tlvl=1,2
+	maplvl=split2d"384,512,0,512|0,512,576,640|376,384,0,128"
+	
+	
+	
+	
+	enemyspr=split2d"6,4,2"
+	loadlvl()
+end
+
+function _update60()
+	t+=1
+	if t>=32000 then
+		t-=32000
+	end
+
+end
+
+function _draw()
+
+end
+
+function start_game()
+	-- reload map data --
+	reload(0x1000,0x1000,0x2000)
+
+	-- include --
+	-- TODO myspr
+	-- TODO anilib
+
+	-- map levels --
 	mymin,mymax,mxmin,mxmax=unpack(maplvl[lvl])
-	player.x, player.y=spawnp()
-	player.dx,player.dy,player.ax,player.ay=0,0,0,0
-	player.onground=true
-	camera()
-	scan_map()
+	-- map --
+	mx,my=0,0
+	-- cam --
+	cx,cy=0,0
+	
+	-- player --
+	-- TODO p=make_player()
+	plvls=split2d"" -- x,y spawn points per level
+	px,py=unpack(plvls[lvl])
+	spd=1.2
+	jumpspd=3.5
+	grav=0.25
+	-- TODO invul=120
+
+	-- particles --
+	prts={}
+	-- decorations --
+	decs={}
+	-- enemies --
+	ens={}
+	-- platforms --
+	plts={}
+
+	-- scan map ==
+	scanlvls=split2d"" -- scan the entire map, x and y
+	-- TODO scan_map()
+
+	-- state machine --
+	_upd=upd_game
+	_drw=drw_game
 end
 
 function scan_map()
-	ens={}
-	for x=mxmin/8,mxmax/8 do
-		for y=mymin/8,mymax/8 do
-			parse_tile(mget(x,y),x,y)
-		end
-	end
+
 end
 
 function parse_tile(tle,x,y)
 	local _x,_y=x*8,y*8
 
-	if tle==10 then
-		local esp,ew,eh=unpack(enemyspr[1])
-		make_en(esp,_x,_y,ew,eh)
+	-- TODO --
+	if tle=XX then -- enemy
+		make_en()
 		mset(x,y,0)
 	end
-end
-
-function make_en(esp,ex,ey,ew,eh)
-	add(ens,{
-		sp=esp,
-		sw=ew,sh=eh,
-		x=ex,y=ey,
-		dx=0,dy=0,ax=0,ay=0,
-		dir=-1,
-		spd=0.5,
-		g=0.5,
-		hx=0,hy=0,
-		hw=ew*8,hh=eh*8,
-		cm=true,cw=false,
-		on_upd=upd_enemy
-	})
-end
-
-function _init()
-	lvl,tlvl=1,2
-	maplvl=split2d"384,512,0,512|0,512,576,640|376,384,0,128"
-	enemyspr=split2d"6,4,2"
-	loadlvl()
-end
-
-function nextlvl()
-	lvl+=1
-	loadlvl()
-end
-
-function _update()
-    player:update()
-	if (player.y > mymax) _init()
-	if (tmap(player,1)) nextlvl()
-end
-
-function _draw()
-	cls(12)
-	mapcam()
-	map()
-	for e in all(ens) do
-		spr(e.sp,e.x,e.y,e.sw,e.sh,e.dir==1)
-	end
-	player:draw()
-end
--->8
--- tools --
-function split2d(s)
-	local arr=split(s,"|",false)
-	for k,v in pairs(arr) do
-		arr[k]=split(v)
-	end
-	return arr
-end
-
-function spawnp()
-	local px=4*8
-	local py=40*8
-	
-	if (lvl==1) px=4*8 py=56*8
-	if (lvl==2) px=72*8 py=56*8
-	if (lvl==3) px=4*8 py=40*8
-
-	return px, py
-end
--->8
--- player
-player = {
-    x=0,
-    y=61,
-    dx=0,
-    dy=0,
-    ax=0,
-    ay=0,
-    dir=2,    -- 0=left, 1=right, 2=up, 3=down
-    sp = 1,
-    speed = 2,
-	-- jump values --
-	onground=true,
-    initaccel= -5,
-    g=0.5,
-    -- feet hitbox --
-    hx=4,
-    hy=10,
-    hw=8,
-    hh=6,
-    cm=true,  -- collide with map tiles
-    cw=false, -- trigger room transition in edges
-    update = function(self)
-     self.dx=0
-     self.dy+=self.g
-     if (btn(0)) self.dx=-self.speed self.dir=0 self.sp=1
-     if (btn(1)) self.dx=self.speed self.dir=1 self.sp=1
-     if btnp(4) and self.onground then
-	 	self.dy=self.initaccel
-		self.onground=false
-	 end
-     move_and_collide(self)
-	 if cmap(self, self.x, self.y+1) then
-	 	self.onground=true
-	 else
-	 	self.onground=false
-	 end
-    end,
-    draw = function(self)
-        spr(self.sp,self.x,self.y,2,2,self.dir==1,false)
-    end
-}
--->8
--- enemy --
-function upd_enemy(e)
-	e.dx=e.dir*e.spd
-	e.dy+=e.g
-	move_and_collide(e)
-	-- turn around at a wall or ledge--
-	if cmap(e,e.x+e.dir*8,e.y) or not cmap(e,e.x+e.dir*8,e.y+1) then
-		e.dir*=-1
-	end
-end
--->8
--- map --
--- world bounds --
-function cmap(o,x,y)
-	x=x or o.x
-	y=y or o.y
-	
-	local ct=false
-	local cb=false
-	
-	-- colliding with map tiles --
-	if o.cm then
-		local bx=x+o.hx
-		local by=y+o.hy
-		local x1=bx/8
-		local y1=by/8
-		local x2=(bx+o.hw-1)/8
-		local y2=(by+o.hh-1)/8
-		
-		ct=fget(mget(x1,y1),0) or fget(mget(x1,y2),0)
-		or fget(mget(x2,y2),0) or fget(mget(x2,y1),0)
-	end
-
--- colliding with world bounds --
-	if o.cw then
-		cb=x+o.hx<0 or x+o.hx+o.hw>w
-		or y+o.hy<0 or y+o.hy+o.hh>h
-	end
-
-	return ct or cb
-end
-
-function tmap(o,f)
-	local bx,by=o.x+o.hx,o.y+o.hy
-	local x1,y1=bx/8,by/8
-	local x2,y2=(bx+o.hw-1)/8,(by+o.hh-1)/8
-
-	return fget(mget(x1,y1),f)
-		or fget(mget(x1,y2),f)
-		or fget(mget(x2,y1),f)
-		or fget(mget(x2,y2),f)
-end
-
--- move object o by its dx/dy, stop at walls --
-function move_and_collide(o)
-	o.ax+=o.dx
-	o.ay+=o.dy
-	local nx=flr(abs(o.ax))
-	local ny=flr(abs(o.ay))
-	local sx=sgn(o.ax)
-	local sy=sgn(o.ay)
-	o.ax-=nx*sx
-	o.ay-=ny*sy
-	
-	for i=1,nx do
-		if cmap(o,o.x+sx,o.y) then o.dx=0 o.ax=0 break end
-		o.x+=sx
-	end
-	for i=1,ny do
-		if cmap(o,o.x,o.y+sy) then o.dy=0 o.ay=0 break end
-		o.y+=sy
-	end
-end
-
-function mapcam()
-	local cx=mid(mxmin, player.x-64, mxmax-128)
-	local cy=mymax-128
-	if (lvl==2) cx=mxmax-128 cy=mid(mymin, player.y-64, mymax-128)
-	camera(cx, cy)
 end
 -->8
 -- credits
