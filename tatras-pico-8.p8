@@ -74,17 +74,145 @@ function start_game()
 end
 
 function scan_map()
-
+	-- TODO
 end
 
 function parse_tile(tle,x,y)
 	local _x,_y=x*8,y*8
 
-	-- TODO --
+	-- TODO
 	if tle=XX then -- enemy
 		make_en()
 		mset(x,y,0)
 	end
+end
+-->8
+-- tools --
+-- 
+function unsplit(s)
+	return unpack(split(s))
+end
+
+-- Splits a string by "|" and turns those values into numbers
+function split2d(s)
+	local arr=split(s,"|",false)
+	for k,v in pairs(arr) do
+		arr[k]=split(v)
+	end
+	return arr
+end
+
+-- btn(n) as a number, -1, 0, or 1
+function btnf(n)
+	return btn(n) and 1 or 0
+end
+
+-- Parses "hp=3, col=4" into {hp=3, col=4}
+function str_to_arr(s)
+	local arr={}
+	local params=split(s)
+	for p in all(params) do
+		local kv=split(p,"=")
+		arr[kv[1]]=kv[2]
+	end
+	return arr
+end
+
+-- Copies params into arr and returns it
+function add_params(params,arr)
+	for k,v in pairs(params) do
+		arr[k]=v
+	end
+	return arr
+end
+
+-- Sets o.fx from facing direction
+function flipx(o, val)
+	local val=val or o.dir
+	if val!=0 then
+		o.fx=-val
+	end
+end
+
+-- [[
+	Draws sprite index si with sspr(),
+	offset by the origin so (sx,sy) is the objecte's feet
+]] 
+function mspr(si,sx,sy,fx)
+	local _x,_y,_w,_h,_ox,_oy,_fx,_nx=unpack(myspr[si])
+	local _fx2=fx or _fx
+
+	sspr(_x,_y,_w,_h,sx-_ox,sy-_oy,_w,_h,_fx2==1)
+
+	-- mirror position
+	if fx==2 then
+		sspr(_x,_y,_w,_h,sx-_ox+_w,sy-_oy,_w,_h,true)
+	end
+
+	-- recursive
+	if _nx then
+		mspr(_nx,sx,sy)
+	end
+end
+
+-- [[ Debug hitbox
+function msprc(si,sx,sy)
+	local _x,_y,_w,_h,_ox,_oy,_fx,_nx=unpack(myspr[si])
+	rect(sx-_ox,sy-_oy,sx-_ox+_w-1,sy-_oy+_h-1,rnd(split"10,8,14,15"))
+end
+]]
+
+-- Picks a frame from an animation list
+function cyc(age,arr,spd)
+	local spd=spd or 1
+	return arr[(age\spd-1)%#arr+1]
+end
+
+-- [[ 
+	Draws game object.
+	Treats 4 as opaque black.
+	Remaps white to c
+	Player flashes 9 when hurt
+	Restores custom palet with cpal()
+function drw_obj(obj,c)
+	local fx=obj.fx or nil
+	local c=c or 7
+	palt(4,false) pal(4,0)
+	pal(7,c)
+	mspr(cyc(obj.age,obj.ani,obj.anispd),obj.x,obj.y,fx)
+	cpal()
+end
+]]
+
+-- [[ 
+	AABB (Axis-Aligned Bounding Box) overlap between two objects,
+	using each object's col sprite
+]]
+function col(oa,ob,adx,ady,bdx,bdy)
+	local _ax,_ay,_aw,_ah,_aox,_aoy,_afx=unpack(myspr[oa.col])
+	local _bx,_by,_bw,_bh,_box,_boy,_bfx=unpack(myspr[ob.col])
+
+	local adx=adx or oa.x
+	local ady=ady or oa.y
+	local bdx=bdx or ob.x
+	local bdy=bdy or ob.y
+
+	local a_left=flr(adx)-_aox
+	local a_top=flr(ady)-_aoy
+	local a_right=a_left+_aw-1
+	local a_bottom=a_top+_ah-1
+
+	local b_left=flr(bdx)-_box
+	local b_top=flr(bdy)-_boy
+	local b_right=b_left+_bw-1
+	local b_bottom=b_top+_bh-1
+
+	if a_top>b_bottom then return false end
+	if b_top>a_bottom then return false end
+	if a_left>b_right then return false end
+	if b_left>a_right then return false end
+
+	return true
 end
 -->8
 -- credits
