@@ -98,6 +98,10 @@ function spawnp()
 
 	return px, py
 end
+
+function overlap(ax,ay,aw,ah,bx,by,bw,bh)
+	return ax<bx+bw and bx<ax+aw and ay<by+bh and by<ay+ah
+end
 -->8
 -- player
 player = {
@@ -110,6 +114,7 @@ player = {
     dir=2,    -- 0=left, 1=right, 2=up, 3=down
     sp = 1,
     speed = 2,
+	hp=3,
 	-- jump values --
 	onground=true,
     initaccel= -5,
@@ -135,6 +140,13 @@ player = {
 	 	self.onground=true
 	 else
 	 	self.onground=false
+	 end
+	 -- enemy collision --
+	 for e in all(ens) do
+	 	if overlap(self.x,self.y,16,16,e.x,e.y,e.sw*8,e.sh*8) then
+			start_game()
+			return
+		end
 	 end
     end,
     draw = function(self)
