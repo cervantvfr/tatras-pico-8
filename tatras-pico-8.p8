@@ -75,24 +75,7 @@ function _update()
 	if (player.y > mymax) start_game()
 	if (tmap(player,1)) lvl+=1 start_game()
 
-	if lvl==2 then
-		local camx=mxmax-128
-		local camy=mid(mymin, player.y-64, mymax-128)
-		if t%30==0 then
-			add(rocks,{
-				x=camx+rnd(120),
-				y=camy-8,
-				spd=rnd(1)+1,
-				sp=38, sw=1, sh=1
-			})
-		end
-		for r in all(rocks) do
-			r.y+=r.spd
-			if cmap(r,r.x,r.y+1) or r.y>camy+128 then
-				del(rocks,r)
-			end
-		end
-	end
+	if (lvl==2) upd_rocks()
 end
 
 function _draw()
@@ -190,13 +173,8 @@ player = {
 	 end
 	 -- enemy collision --
 	 for e in all(ens) do
-	 	if overlap(self.x+2,self.y+2,12,14,e.x,e.y,e.sw*8,e.sh*8)
-		and self.invul<=0 then
-			self.hp-=5
-			self.invul=50
-			if self.hp<=0 then
-				start_game()
-			end
+	 	if hurt(e,5) then
+			return
 		end
 	 end
     end,
@@ -206,6 +184,18 @@ player = {
 }
 -->8
 -- enemy --
+function hurt(o,n)
+	if overlap(player.x+2,player.y+2,12,14,o.x,o.y,o.sw*8,o.sh*8)
+	and player.invul<=0 then
+		player.hp-=n
+		player.invul=50
+		if player.hp<=0 then
+			start_game()
+			return true
+		end
+	end
+end
+
 function upd_enemy(e)
 	e.hx=e.dir==1 and e.sw*8-e.hw or 0
 	e.dx=e.dir*e.spd
@@ -214,6 +204,38 @@ function upd_enemy(e)
 	-- turn around at a wall or ledge--
 	if cmap(e,e.x+e.dir*8,e.y) or not cmap(e,e.x+e.dir*8,e.y+1) then
 		e.dir*=-1
+	end
+end
+
+function upd_rocks()
+	local camx=mxmax-128
+	local camy=mid(mymin, player.y-64, mymax-128)
+	if t%30==0 then
+		mk_rock(camx+rnd(120),camy-8)
+	end
+		for r in all(rocks) do
+			if upd_rock(r,camy) then
+				return
+			end
+		end
+end
+
+function mk_rock(x,y)
+	add(rocks,{
+			x=x,
+			y=y,
+			spd=rnd(1)+1,
+			sp=38, sw=1, sh=1
+		})
+end
+
+function upd_rock(r,camy)
+	r.y+=r.spd
+	if hurt(r,1) then
+		return true
+	end
+	if cmap(r,r.x,r.y+1) or r.y>camy+128 then
+		del(rocks,r)
 	end
 end
 -->8
