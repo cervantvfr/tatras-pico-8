@@ -36,6 +36,7 @@ function parse_tile(tle,x,y)
 	end
 end
 -->8
+-- main
 function _init()
 	poke(0x5f00+92,255)
 	lvl,tlvl=1,5
@@ -65,7 +66,7 @@ function start_game()
 	scan_map()
 	upd_cam()
 end
--- main
+
 function eat_fruit(p)
 	local x1=(p.x+2)\8
 	local y1=(p.y+2)\8
