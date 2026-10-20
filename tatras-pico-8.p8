@@ -57,8 +57,13 @@ function start_game()
 	player.x, player.y=spawnp()
 	player.dx,player.dy,player.ax,player.ay=0,0,0,0
 	player.onground=true
+	player.running=false
 	player.hp=player.maxhp
 	player.invul=0
+	tap_dir=-1
+	tap_t=0
+	was_down[0]=false
+	was_down[1]=false
 
 	ens={}
 	rocks={}
@@ -160,8 +165,10 @@ player = {
     ax=0,
     ay=0,
     dir=2,    -- 0=left, 1=right, 2=up, 3=down
-    sp = 1,
-    speed = 2,
+    sp=1,
+    speed=2,
+	runspd=3,
+	running=false,
 	maxhp=6,
 	hp=6,
 	invul=0,
@@ -180,11 +187,8 @@ player = {
 	 self.invul=max(self.invul-1,0)
      self.dx=0
      self.dy+=self.g
-     if (btn(0)) self.dx=-self.speed self.dir=0 self.sp=1
-     if (btn(1)) self.dx=self.speed self.dir=1 self.sp=1
-     if btnp(4) and self.onground then
-	 	self.dy=self.initaccel
-		self.onground=false
+     for cmd in all(read_plyr_cmds()) do
+		cmd(self)
 	 end
      move_and_collide(self)
 	 eat_fruit(self)
@@ -331,6 +335,65 @@ end
 
 function mapcam()
 	camera(cx, cy)
+end
+-->8
+-- controller
+tap_dir=-1
+tap_t=0
+was_down={[0]=false,[1]=false}
+
+function cmd_lft(p)
+	local spd=p.running and p.runspd or p.speed
+	p.dx=-spd
+	p.dir=0
+	p.sp=1
+end
+
+function cmd_rght(p)
+	local spd=p.running and p.runspd or p.speed
+	p.dx=spd
+	p.dir=1
+	p.sp=1
+end
+
+function cmd_jmp(p)
+	if p.onground then
+		p.dy=p.initaccel
+		p.onground=false
+	end
+end
+
+binds={
+	[0]=cmd_lft,
+	[1]=cmd_rght,
+	[4]=cmd_jmp,
+	[5]=cmd_jmp
+}
+
+function read_plyr_cmds()
+	local cmds={}
+	tap_t=max(tap_t-1,0)
+	for b=0,1 do
+		local down=btn(b)
+		if btn(b) then
+			if tap_dir==b and tap_t>0 then
+				player.running=true
+			else
+				player.running=false
+			end
+		end
+			if was_down[b] and not down then
+				tap_dir=b
+				tap_t=12
+				player.running=true
+			end
+			was_down[b]=down
+			if down then add(cmds,binds[b]) end
+	end
+	for b=4,5 do
+		if btnp(b) then add(cmds,binds[b]) end
+	end
+	return cmds
 end
 -->8
 -- credits
