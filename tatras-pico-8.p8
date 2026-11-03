@@ -89,7 +89,7 @@ function upd_ledge(l)
 	local by=player.y+player.hy+1
 	local fr=ledge_anim.fr
 	if ledge_hit(l,bx,by,player.hw,player.hh) then
-		l.t+=1
+		l.t+=7
 		if l.t>=fr*(#ledge_anim+1) then
 			ledge_break(l)
 			return
