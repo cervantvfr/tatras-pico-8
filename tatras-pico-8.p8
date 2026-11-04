@@ -121,7 +121,7 @@ function _init()
 	maplvl=split2d"0,128,0,896|128,256,0,896|0,512,896,1024"
 	spawns=split2d"24,104|25,192|960,448"
 	enemyspr=split2d"64,4,2"
-	lvl=3
+	lvl=1
 	t=0
 	init_audio()
 	restart()
@@ -149,6 +149,8 @@ function load_level()
 	player.dx,player.dy,player.ax,player.ay=0,0,0,0
 	player.onground=true
 	player.invul=0
+	player.knock=0
+	player.hop=false
 	player.fate=nil
 	anim_init(player,anims,"idle")
 
@@ -186,14 +188,14 @@ function make_en(esp,ex,ey,ew,eh)
 		x=ex,y=ey,
 		dx=0,dy=0,ax=0,ay=0,
 		dir=-1,
-		spd=0.5,
 		g=0.5,
 		hx=0,hy=0,
 		hw=8,hh=eh*8,
 		cm=true,cw=false,
-		on_upd=upd_enemy
+		sm={current=nil}
 	}
 	anim_init(e,enemy_anims,"walk")
+	sm_change(e,st_patrol)
 	add(ens,e)
 end
 
@@ -293,7 +295,11 @@ function _update()
 	end
 
 	for e in all(ens) do
-		e.on_upd(e)
+		sm_update(e)
+	end
+	resolve_enemies()
+	if player.fate then
+		return
 	end
 
 	if (lvl==3) upd_rocks()
@@ -305,7 +311,7 @@ function _update()
 		begin_angel()
 		update_fate()
 		return
-	end
+	end	
 
 	if (tmap(player,1)) next_level()
 	upd_clouds()
@@ -319,6 +325,9 @@ function _draw()
 	map()
 	for e in all(ens) do
 		spr(e.sp,e.x,e.y,e.sw,e.sh,e.dir~=-1)
+		if e.sm.current==st_chase then
+			spr(118,e.x+12,e.y-8)
+		end
 	end
 	for r in all(rocks) do
 		spr(r.sp,r.x,r.y)
@@ -355,6 +364,9 @@ player = {
 	maxhp=6,
 	hp=6,
 	invul=0,
+	knock=0,
+	kdx=0,
+	hop=false,
 	-- jump values --
 	onground=true,
     initaccel= -5,
@@ -369,10 +381,19 @@ player = {
     update = function(self)
 	 if self.fate then return end
 	 self.invul=max(self.invul-1,0)
-     self.dx=0
      self.dy+=self.g
-     for cmd in all(read_plyr_cmds()) do
-		cmd(self)
+	 if self.knock>0 then
+		self.knock-=1
+		self.dx=self.kdx
+		if self.hop then
+			self.dy=-3
+			self.hop=false
+		end
+	 else
+		self.dx=0
+		for cmd in all(read_plyr_cmds()) do
+			cmd(self)
+		end
 	 end
      move_and_collide(self)
 	 eat_fruit(self)
@@ -381,12 +402,6 @@ player = {
 	 	self.onground=true
 	 else
 	 	self.onground=false
-	 end
-	 -- enemy collision --
-	 for e in all(ens) do
-	 	if hurt(e,5) then
-			return
-		end
 	 end
 	 if self.play!="hurt" and self.state!="hurt" then
 		if not self.onground then
@@ -414,25 +429,50 @@ player = {
 enemy_anims={
 	walk={fr=6,64,68}
 }
-function hurt(o,n)
-	if player.fate then return end
-	if overlap(player.x+2,player.y+2,12,14,o.x,o.y,o.sw*8,o.sh*8)
-	and player.invul<=0 then
-		player.hp-=n
-		if player.hp<=0 then begin_death() return true end
-		player.invul=50
-		player.play="hurt"
-		actions.notify("hurt")
+
+function sm_change(e,next_state)
+	local sm=e.sm
+	if sm.current==next_state then return end
+	if sm.current and sm.current.exit then
+		sm.current.exit(e)
+	end
+	sm.current=next_state
+	if sm.current and sm.current.enter then
+		sm.current.enter(e)
 	end
 end
 
-function upd_enemy(e)
+function sm_update(e)
+	local next_state=st_patrol
+	if enemy_vision(e) then
+		next_state=st_chase
+	end
+	sm_change(e,next_state)
+	e.sm.current.update(e)
+end
+
+function enemy_vision(e)
+	if player.invul>0 or player.fate then return false end
+	local x=e.x+e.sw*4
+	if e.dir<0 then
+		x-=64
+	end
+	return overlap(player.x+2,player.y+2,12,14,x,e.y,64,16)
+end
+
+function enemy_blocked(e)
+	return cmap(e,e.x+e.dir*8,e.y) or not cmap(e,e.x+e.dir*8,e.y+1)
+end
+
+function enemy_move(e,spd,hold)
 	e.hx=e.dir==1 and e.sw*8-e.hw or 0
-	e.dx=e.dir*e.spd
+	e.dx=e.dir*spd
+	if hold and enemy_blocked(e) then
+		e.dx=0
+	end
 	e.dy+=e.g
 	move_and_collide(e)
-	-- turn around at a wall or ledge--
-	if cmap(e,e.x+e.dir*8,e.y) or not cmap(e,e.x+e.dir*8,e.y+1) then
+	if not hold and enemy_blocked(e) then
 		e.dir*=-1
 	end
 	animate(e)
@@ -441,6 +481,76 @@ function upd_enemy(e)
 		actions.notify("enemy_walk")
 	end
 end
+
+-- states
+st_patrol={}
+
+function st_patrol.update(e)
+	enemy_move(e,0.5,false)
+end
+
+st_chase={}
+
+function st_chase.enter(e)
+	actions.notify("alert")
+end
+
+function st_chase.update(e)
+	local pcx=player.x+8
+	local ecx=e.x+e.sw*4
+	if pcx<ecx then
+		e.dir=-1
+	elseif pcx>ecx then
+		e.dir=1
+	end
+	enemy_move(e,2,true)
+end
+
+function hurt(o,n)
+	if player.fate then return end
+	if overlap(player.x+2,player.y+2,12,14,o.x,o.y,o.sw*8,o.sh*8)
+	and player.invul<=0 then
+		player.hp-=n
+		if player.hp<=0 then begin_death() return true end
+		local s=1
+		if player.x+8<o.x+o.sw*4 then s=-1 end
+		player.kdx=2*s
+		player.dx=player.kdx
+		player.dy=-3
+		player.hop=true
+		player.knock=10
+		player.invul=50
+		player.play="hurt"
+		actions.notify("hurt")
+	end
+end
+
+function resolve_enemies()
+	for e in all(ens) do
+		if player.fate then return end
+		if player.invul<=0
+		and overlap(player.x+2,player.y+2,12,14,e.x,e.y,e.sw*8,e.sh*8) then
+			if hurt(e,5) then return end
+			push_player(e)
+		end
+	end
+end
+
+function push_player(e)
+	local leftx=e.x-14
+	local rightx=e.x+e.sw*8-2
+	local a,b=leftx,rightx
+	if abs(rightx-player.x)<abs(leftx-player.x) then
+		a,b=rightx,leftx
+	end
+	if not cmap(player,a,player.y) then
+		player.x=a
+		player.ax=0
+	elseif not cmap(player,b,player.y) then
+		player.x=b
+		player.ax=0
+	end
+end	
 
 function upd_rocks()
 	local camx=mxmax-128
@@ -684,7 +794,8 @@ sfx_ids={
 	hurt=2,
 	enemy_walk=3,
 	brk=4,
-	die=5
+	die=5,
+	alert=6
 }
 
 function on_sfx(event)
@@ -701,6 +812,7 @@ function init_audio()
 	actions.sub("enemy_walk",on_sfx)
 	actions.sub("brk",on_sfx)
 	actions.sub("die",on_sfx)
+	actions.sub("alert",on_sfx)
 end
 
 __gfx__
@@ -760,14 +872,14 @@ ffffffff5511555155100551000050513333333333333b3b3cc1cc3b007777777777777777777777
 8f8ff8f8551555515505505150000001333333333333b3bb1111111b007777777777777777777777777700000000000000000000424444244244442442444424
 888888880555551100555511005000013333333333333b3b1111111b007777777777777777777777777770000000000000000000442442444424424444244244
 8f8ff8f8005511000055110000500100033333333333333031131130077777777777777777777777777770000000000000000000444224444442244444422444
-00000000000000000000000000000000000000000000000000000000077777777777777777777777777770000000000000000000dddddddd0dddd0d0000dd000
-07700770077007700770077000000000000000000000000000000000077777777777777777777777777770000000000000000000111111111010111100100100
-78877887720772077007700700000000000000000000000000000000007777777777777777777777777770000000000000000000666666660666606600066000
-78888887702020277000000700000000000000000000000000000000000777777777777777777777777770000000000000000000666666666606066060000600
-78888887720202077000000700000000000000000000000000000000000777777777777777777777777770000000000000000000666666666060606600606006
+00000000000000000000000000000000000000000000000000088200077777777777777777777777777770000000000000000000dddddddd0dddd0d0000dd000
+07700770077007700770077000000000000000000000000000088200077777777777777777777777777770000000000000000000111111111010111100100100
+78877887720772077007700700000000000000000000000000088200007777777777777777777777777770000000000000000000666666660666606600066000
+78888887702020277000000700000000000000000000000000088200000777777777777777777777777770000000000000000000666666666606066060000600
+78888887720202077000000700000000000000000000000000088200000777777777777777777777777770000000000000000000666666666060606600606006
 07888870072020700700007000000000000000000000000000000000000077777777777777777777777700000000000000000000066666600666066006060060
-00788700007207000070070000000000000000000000000000000000000000007777777777777777000000000000000000000000006666000066660000600600
-00077000000770000007700000000000000000000000000000000000000000000007777777000000000000000000000000000000000000000000000000000000
+00788700007207000070070000000000000000000000000000088200000000007777777777777777000000000000000000000000006666000066660000600600
+00077000000770000007700000000000000000000000000000088200000000000007777777000000000000000000000000000000000000000000000000000000
 d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6
 d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d652000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
