@@ -382,12 +382,29 @@ player = {
 	 if self.fate then return end
 	 self.invul=max(self.invul-1,0)
      self.dy+=self.g
-	 if self.knock>0 then
-		self.knock-=1
-		self.dx=self.kdx
+	 local locked=self.knock>0
+	 if locked then
+		self.play="hurt"
+		if self.ktx then
+			local d=self.ktx-self.x
+			if d!=0 then
+				local s=d>0 and 1 or -1
+				self.dx=s*min(2,abs(d))
+				self.ax=0
+			else
+				self.dx=0
+				self.ax=0
+			end
+		else
+			self.dx=self.kdx
+		end
 		if self.hop then
 			self.dy=-3
 			self.hop=false
+		end
+		self.knock-=1
+		if self.knock==0 then
+			self.ktx=nil
 		end
 	 else
 		self.dx=0
@@ -403,7 +420,7 @@ player = {
 	 else
 	 	self.onground=false
 	 end
-	 if self.play!="hurt" and self.state!="hurt" then
+	 if not locked then
 		if not self.onground then
 		 self.play="jump"
 		elseif self.dx!=0 then
@@ -411,7 +428,7 @@ player = {
 		else
 		 self.play="idle"
 		end
-	   end
+	 end
 	   animate(self)
     end,
     draw = function(self)
@@ -453,11 +470,36 @@ end
 
 function enemy_vision(e)
 	if player.invul>0 or player.fate then return false end
-	local x=e.x+e.sw*4
-	if e.dir<0 then
-		x-=64
+	local ax,ay=e.x+e.sw*4,e.y+e.sh*4
+	local px,py=player.x+8,player.y+9
+	local dx=(px-ax)*e.dir
+	local dy=py-ay
+	if dx<0 or dx>64 or abs(dy)*8>dx*3 then
+		return false
 	end
-	return overlap(player.x+2,player.y+2,12,14,x,e.y,64,16)
+	return not ray_blocked(ax,ay,px,py)
+end
+
+function ray_blocked(x0,y0,x1,y1)
+	local n=flr(max(abs(x1-x0),abs(y1-y0)))
+	if n<1 then return false end
+	local sx,sy=(x1-x0)/n,(y1-y0)/n
+	local hx,hy=flr(x0/8),flr(y0/8)
+	local x,y=x0,y0
+	for i=1,n do
+		x+=sx
+		y+=sy
+		if i==n then x,y=x1,y1 end
+		local cx,cy=flr(x/8),flr(y/8)
+		if (cx!=hx or cy!=hy) and fget(mget(cx,cy),0) then
+			local lx,ly=x-cx*8,y-cy*8
+			-- outer pixel of a tile is the edge, not cover
+			if lx>1 and lx<7 and ly>1 and ly<7 then
+				return true
+			end
+		end
+	end
+	return false
 end
 
 function enemy_blocked(e)
@@ -514,6 +556,7 @@ function hurt(o,n)
 		if player.hp<=0 then begin_death() return true end
 		local s=1
 		if player.x+8<o.x+o.sw*4 then s=-1 end
+		player.ktx=nil
 		player.kdx=2*s
 		player.dx=player.kdx
 		player.dy=-3
@@ -543,14 +586,24 @@ function push_player(e)
 	if abs(rightx-player.x)<abs(leftx-player.x) then
 		a,b=rightx,leftx
 	end
+	local exitx
 	if not cmap(player,a,player.y) then
-		player.x=a
-		player.ax=0
+		exitx=a
 	elseif not cmap(player,b,player.y) then
-		player.x=b
-		player.ax=0
+		exitx=b
 	end
-end	
+	player.ktx=nil
+	player.kdx=0
+	if exitx then
+		local s=exitx<e.x and -1 or 1
+		player.ktx=exitx+20*s
+		local dist=abs(player.ktx-player.x)
+		player.knock=flr((dist+1)/2)
+		player.ax=0
+	else
+		player.knock=10
+	end
+end
 
 function upd_rocks()
 	local camx=mxmax-128
@@ -719,7 +772,7 @@ anims={
 	idle={fr=20,1,3},
 	walk={fr=6,5,7,9},
 	jump={fr=6,11,13},
-	hurt={fr=10,next="idle",32},
+	hurt={fr=10,32},
 	hold={fr=20,next="die",32},
 	die={fr=8,once=true,38,40,42},
 	angel={fr=6,44,46}
@@ -987,6 +1040,7 @@ __sfx__
 4e0400002160201612137120c602016120b7120460202602026022860225602256022160225602256022560225602286022860225602256022560228602256022860228602286022560228602286022860228602
 d102000008610056100461001610006100d6000d6001b6001d6001f600206002060020600186001a6001d60000600006000060000600006000060000600006000060000600006000060000600006000060000600
 930400003e6623c6623a6623866236662356523365231652306522f6522d6522c6522a6522865227652256522465222652216521f6521d6521b652186521665213652106520d6520a65208652066520465201652
+270200000d4600d76010460107601346013760164601676019460197601c4601c7601f4601f76022460227603170035700387003a70039700397003a7003b7003d7003e7003f7000070000700007000070000700
 __music__
 03 00010203
 
