@@ -353,7 +353,7 @@ function load_level()
 	if lvl==1 then
 		music(0,0,1)
 	elseif lvl==2 then
-		music(8,0,1)
+		music(4,0,1)
 	else
 		music(-1)
 	end
@@ -1584,17 +1584,8 @@ __music__
 00 47070844
 00 47070809
 03 4707090a
-01 470d494a
-01 470d0e4c
-01 470d0e10
-01 480d0e0f
-01 470d494a
-01 470d0e4c
-03 470d0e10
-03 480d0e0f
 00 470d494a
 00 470d0e4c
 01 470d0e10
 00 470d0e10
 02 480d0e0f
-
