@@ -696,7 +696,7 @@ function draw_ending()
 	pal(7,c7,1)
 	cls(0)
 	if card_t<225 then
-		print("Home sweet home",34,61,9)
+		print("Home sweet home♥",34,61,9)
 		if card_t>=105 then
 			print("FIN",112,120,7)
 		end
