@@ -1,6 +1,8 @@
 pico-8 cartridge // http://www.pico-8.com
 version 43
 __lua__
+-- tatras pico-8
+-- by camote dragon
 -- tools --
 function split2d(s)
 	local arr=split(s,"|",false)
@@ -143,11 +145,6 @@ function upd_ledges()
 		upd_ledge(l)
 	end
 end
-
-plats={}
-ride=nil
-hold=nil
-air=nil
 
 plats={}
 ride=nil
@@ -539,7 +536,8 @@ function draw_title()
 	cls(12)
 	spr(player.sp,player.x,player.y,2,2)
 	title_word()
-	local by="a game by camote-dragon"
+	local by="a game by camote dragon"
+	print(by,(128-#by*4)\2,32,7)
 	print("Z/X TO JUMP",40,90,7)
 	if t%30<20 then
 		print("PRESS Z/X TO START",28,102,7)
@@ -716,7 +714,7 @@ function draw_ending()
 	end
 	print("Thank you for playing♥",22,61,9)
 	if card_t>=105 then
-		print("- camote-dragon",90,120,7)
+		print("- camote dragon",50,120,7)
 	end
 	if card_t>=330 and t%30<20 then
 		print("PRESS Z/X TO GO BACK",24,80,7)
@@ -935,7 +933,7 @@ player = {
     dy=0,
     ax=0,
     ay=0,
-    dir=2,    -- 0=left, 1=right, 2=up, 3=down
+    dir=2,
     sp=1,
     speed=2,
 	maxhp=6,
@@ -955,7 +953,7 @@ player = {
     hw=8,
     hh=6,
     cm=true,  -- collide with map tiles
-    cw=true, -- trigger room transition in edges
+    cw=true,
 	update = function(self) --player.update
 		if self.fate then return end
 		self.invul=max(self.invul-1,0)
@@ -1271,7 +1269,6 @@ function upd_rock(r,camy)
 end
 -->8
 -- map --
--- world bounds --
 function ledge_open(tx,ty)
 	tx,ty=flr(tx),flr(ty)
 	for l in all(ledges) do
@@ -1481,7 +1478,7 @@ end
 function actions.unsub(event,fn)
 	local list=actions.subs[event]
 	if list then
-		rem(list,fn)
+		del(list,fn)
 	end
 end
 
